@@ -821,11 +821,11 @@ bool QuestAccept_npc_arei(Player* pPlayer, Creature* pCreature, const Quest* pQu
 
 enum
 {
-    FAILED_TO_LOCATE_QUEST = 0,
-    QUEST_CORRUPTED_SONGFLOWER = 1,
-    QUEST_CORRUPTED_NIGHT_DRAGON = 2,
-    QUEST_CORRUPTED_WINDBLOSSOM = 3,
-    QUEST_CORRUPTED_WHIPPER_ROOT = 4,
+    FAILED_TO_LOCATE_QUEST = 0,         // flag used in the identification of the quest
+    QUEST_CORRUPTED_SONGFLOWER = 1,     // flag used in the identification of the quest
+    QUEST_CORRUPTED_NIGHT_DRAGON = 2,   // flag used in the identification of the quest
+    QUEST_CORRUPTED_WINDBLOSSOM = 3,    // flag used in the identification of the quest
+    QUEST_CORRUPTED_WHIPPER_ROOT = 4,   // flag used in the identification of the quest
 
     GO_CLEANSED_SONGFLOWER = 164882,
     SPELL_SONGFLOWER_SERENADE = 15366,
@@ -833,6 +833,8 @@ enum
     GO_CLEANSED_NIGHT_DRAGON = 164881,
     GO_CLEANSED_WINDBLOSSOM = 164884,
     GO_CLEANSED_WHIPPER_ROOT = 174687,
+    
+    GO_CORRUPTED_WHIPPER_ROOT = 173284,
 
     PLANT_SPAWN_DURATION = 60
 };
@@ -845,6 +847,20 @@ static const uint32 aCorruptedWindblossomQuestId[] =
 { 996, 998, 1514, 4115, 4221, 4222, 4343, 4403, 4466, 4466, 4467 };  // Corrupted Windblossom
 static const uint32 aCorruptedWhipperRootQuestId[] =
 { 4117, 4443, 4444, 4445, 4446, 4461 };                              // Corrupted Whipper Root
+
+// corrupted plant coordinates - required for the respawn issue work-a-round
+
+struct CorruptPlantedLocation
+{
+    float fX, fY, fZ, fO;
+};
+
+static const EventLocation aCorruptedPlantLocation[] =
+{
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6424.697f, -1276.827f, 382.491f, 2.56f}
+};
+
 
 uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
 {
@@ -895,6 +911,11 @@ void DespawnCorruptedPlant(GameObject* pGo)
     pGo->SetRespawnTime(1);
 }
 
+void SpawnNewCorruptedPlant()
+{
+    pPlayer->SummonGameObject(GO_CORRUPTED_WHIPPER_ROOT, aCorruptedPlantLocation[0].fX, aCorruptedPlantLocation[0].fY, aCorruptedPlantLocation[0].fZ, aCorruptedPlantLocation[0].fO, 30);
+}
+
 bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Quest* pQuest)
 {
     // acquire plant's coordinates
@@ -907,6 +928,8 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
+        // spawn new plant - work-a-round for the spawning issue
+        SpawnNewCorruptedPlant();
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_SONGFLOWER, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
     }
