@@ -821,18 +821,20 @@ bool QuestAccept_npc_arei(Player* pPlayer, Creature* pCreature, const Quest* pQu
 
 enum
 {
-    FAILED_TO_LOCATE_QUEST = 0,
-    QUEST_CORRUPTED_SONGFLOWER = 1,
-    QUEST_CORRUPTED_NIGHT_DRAGON = 2,
-    QUEST_CORRUPTED_WINDBLOSSOM = 3,
-    QUEST_CORRUPTED_WHIPPER_ROOT = 4,
+    FAILED_TO_LOCATE_QUEST = 0,         // flag used in the identification of the quest
+    QUEST_CORRUPTED_SONGFLOWER = 1,     // flag used in the identification of the quest
+    QUEST_CORRUPTED_NIGHT_DRAGON = 2,   // flag used in the identification of the quest
+    QUEST_CORRUPTED_WINDBLOSSOM = 3,    // flag used in the identification of the quest
+    QUEST_CORRUPTED_WHIPPER_ROOT = 4,   // flag used in the identification of the quest
 
     GO_CLEANSED_SONGFLOWER = 164882,
     SPELL_SONGFLOWER_SERENADE = 15366,
 
     GO_CLEANSED_NIGHT_DRAGON = 164881,
     GO_CLEANSED_WINDBLOSSOM = 164884,
-    GO_CLEANSED_WHIPPER_ROOT = 174687,
+    GO_CLEANSED_WHIPPER_ROOT = 164883,
+    
+    GO_CORRUPTED_WHIPPER_ROOT = 173284,
 
     PLANT_SPAWN_DURATION = 60
 };
@@ -846,16 +848,48 @@ static const uint32 aCorruptedWindblossomQuestId[] =
 static const uint32 aCorruptedWhipperRootQuestId[] =
 { 4117, 4443, 4444, 4445, 4446, 4461 };                              // Corrupted Whipper Root
 
-uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
+bool aCorruptedWhipperRootSpawned[] =
+{ true, true, true, true, true, true, true};                    // Corrupted Whipper Root
+static const uint32 aCorruptedWhipperRootId[] =
+{ 164888, 173284, 174605, 174606, 174607, 174686 };             // Corrupted Whipper Root
+
+// corrupted plant coordinates - required for the respawn issue work-a-round
+
+struct CorruptedPlantedLocation
+{
+    float fX, fY, fZ, fO;
+};
+
+static const CorruptedPlantedLocation aCorruptedWhipperRootLocation[] =
+{
+    {3866.64f, -666.657, 329.731f, -2.373f}, // 164888
+    {6433.25f, -1266.62, 383.206f, 2.234f}, // 173284
+    {6666.67f, -1200.0f, 471.328f, 2.164f}, // 174605
+    {6400.0f, -699.992f, 477.424f, 2.600f}, // 174606
+    {5333.33f, -833.325f, 342.732f, 0.628f}, // 174607
+    {4824.34f, -316.803f, 358.791f, -2.216f} // 174686
+};
+
+struct LocateQuestResult {
+    int iQuest;
+    int iPlantIndex;
+};
+
+LocateQuestResult locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
 {
     int index = 0;
+    LocateQuestResult findQuestResult;
     if (uQuestToSearchFor == QUEST_CORRUPTED_SONGFLOWER)
     {
         // check Cleansed Songflower Quest IDs
         for (index = 0; index < 9; index++)
         {
             if (uQuestId == aCorruptedSongflowerQuestId[index])
-                return QUEST_CORRUPTED_SONGFLOWER;
+            {
+                findQuestResult.iQuest = QUEST_CORRUPTED_SONGFLOWER;
+                findQuestResult.iPlantIndex = index;
+                return findQuestResult;
+            }
         }
     }
     else if (uQuestToSearchFor == QUEST_CORRUPTED_NIGHT_DRAGON)
@@ -864,7 +898,11 @@ uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
         for (int index = 0; index < 4; index++)
         {
             if (uQuestId == aCorruptedNightDragonQuestId[index])
-                return QUEST_CORRUPTED_NIGHT_DRAGON;
+            {
+                findQuestResult.iQuest = QUEST_CORRUPTED_NIGHT_DRAGON;
+                findQuestResult.iPlantIndex = index;
+                return findQuestResult;
+            }
         }
     }
     else if (uQuestToSearchFor == QUEST_CORRUPTED_WINDBLOSSOM)
@@ -873,7 +911,11 @@ uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
         for (int index = 0; index < 10; index++)
         {
             if (uQuestId == aCorruptedWindblossomQuestId[index])
-                return QUEST_CORRUPTED_WINDBLOSSOM;
+            {
+                findQuestResult.iQuest = QUEST_CORRUPTED_WINDBLOSSOM;
+                findQuestResult.iPlantIndex = index;
+                return findQuestResult;
+            }
         }
     }
     else if (uQuestToSearchFor == QUEST_CORRUPTED_WHIPPER_ROOT)
@@ -882,11 +924,16 @@ uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
         for (int index = 0; index < 6; index++)
         {
             if (uQuestId == aCorruptedWhipperRootQuestId[index])
-                return QUEST_CORRUPTED_WHIPPER_ROOT;
+            {
+                findQuestResult.iQuest = QUEST_CORRUPTED_WHIPPER_ROOT;
+                findQuestResult.iPlantIndex = index;
+                return findQuestResult;
+            }
         }
     }
 
-    return FAILED_TO_LOCATE_QUEST; // quest ID not located
+    findQuestResult.iQuest = FAILED_TO_LOCATE_QUEST;
+    return findQuestResult; // quest ID not located
 }
 
 void DespawnCorruptedPlant(GameObject* pGo)
@@ -895,46 +942,121 @@ void DespawnCorruptedPlant(GameObject* pGo)
     pGo->SetRespawnTime(1);
 }
 
+uint32 findPlantToSpawn(int plantType)
+{
+    switch (plantType)
+    {
+        case  QUEST_CORRUPTED_WHIPPER_ROOT:
+        {   
+            int choice = rand() % 5;
+            if (!aCorruptedWhipperRootSpawned[choice])
+            {
+                DEBUG_LOG("***** RANDOMLY PICKED %s %u ******* ", "Whipper Root", choice);
+                return choice; // spawn this one
+            }
+            else // failed to locate one randomly
+            {
+                DEBUG_LOG("***** FAILED TO RANDOMLY PICK %s ******* ", "Whipper Root");
+                // find the first one
+                for (int i = 0; i < 6; i++)
+                {
+                    if (!aCorruptedWhipperRootSpawned[i])
+                    {
+                        DEBUG_LOG("***** PICKED %s %u ******* ", "Whipper Root", i);
+                        return i; // spawn this one
+                    }
+                }
+                // reached here, then all plants are spawned
+            }
+        }
+    }
+
+    DEBUG_LOG("***** ALL PLANTS ARE %s ******* ", "Spawned");
+    return 0; // all plants are currently spawned
+}
+
+void SpawnNewCorruptedPlant(Player* pPlayer, LocateQuestResult findQuestResult)
+{
+    switch (findQuestResult.iQuest)
+    {
+        case  QUEST_CORRUPTED_WHIPPER_ROOT:
+        {            
+            // locate another plant to spawn (not the same one)
+            if (int plantToSpawn = findPlantToSpawn(QUEST_CORRUPTED_WHIPPER_ROOT))
+            {      
+                DEBUG_LOG("***** SPAWNING WHIPPER ROOT # %u ", plantToSpawn);
+                pPlayer->SummonGameObject(aCorruptedWhipperRootId[plantToSpawn], aCorruptedWhipperRootLocation[plantToSpawn].fX, aCorruptedWhipperRootLocation[plantToSpawn].fY, aCorruptedWhipperRootLocation[plantToSpawn].fZ, aCorruptedWhipperRootLocation[plantToSpawn].fO, 30);
+            }
+            else
+                DEBUG_LOG("***** ALL PLANTS ARE %s ******* ", "Spawned");
+            
+            // set plant to despawned state
+            aCorruptedWhipperRootSpawned[findQuestResult.iPlantIndex] = false;
+            break;            
+        }
+    }
+}
+
 bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Quest* pQuest)
 {
     // acquire plant's coordinates
     float fX, fY, fZ;
     pGo->GetPosition(fX, fY, fZ);
 
-    uint32 uQuestId = pQuest->GetQuestId();
+    uint32 uQuestId = pQuest->GetQuestId();    
+    
+    LocateQuestResult findQuestResult;
 
-    if (locateQuestId(QUEST_CORRUPTED_SONGFLOWER, uQuestId) == QUEST_CORRUPTED_SONGFLOWER)
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_SONGFLOWER, uQuestId);
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_SONGFLOWER)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_SONGFLOWER, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
+        return true;
     }
-    else if (locateQuestId(QUEST_CORRUPTED_NIGHT_DRAGON, uQuestId) == QUEST_CORRUPTED_NIGHT_DRAGON)
+    
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_NIGHT_DRAGON, uQuestId);
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_NIGHT_DRAGON)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_NIGHT_DRAGON, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
+        return true;
     }
-    else if (locateQuestId(QUEST_CORRUPTED_WINDBLOSSOM, uQuestId) == QUEST_CORRUPTED_WINDBLOSSOM)
+    
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_WINDBLOSSOM, uQuestId);
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_WINDBLOSSOM)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_WINDBLOSSOM, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
+        return true;
     }
-    else if (locateQuestId(QUEST_CORRUPTED_WHIPPER_ROOT, uQuestId) == QUEST_CORRUPTED_WHIPPER_ROOT)
+    
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_WHIPPER_ROOT, uQuestId);
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_WHIPPER_ROOT)
     {
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("***** INTERACTING WITH %s ******* ", "Whipper Root");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
+        // spawn new plant - work-a-round for the spawning issue
+        SpawnNewCorruptedPlant(pPlayer, findQuestResult);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_WHIPPER_ROOT, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
+        return true;
     }
-    else
-        return false;
-
-    return true;
+    
+    return false;
 }
 
 // This is only used for the Corrupted Songflower quest; actually for when interacting with the cleansed songflower
