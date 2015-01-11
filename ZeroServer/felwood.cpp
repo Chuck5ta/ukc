@@ -832,7 +832,7 @@ enum
 
     GO_CLEANSED_NIGHT_DRAGON = 164881,
     GO_CLEANSED_WINDBLOSSOM = 164884,
-    GO_CLEANSED_WHIPPER_ROOT = 174687,
+    GO_CLEANSED_WHIPPER_ROOT = 164883,
     
     GO_CORRUPTED_WHIPPER_ROOT = 173284,
 
@@ -860,17 +860,14 @@ struct CorruptedPlantedLocation
     float fX, fY, fZ, fO;
 };
 
-static const CorruptedPlantedLocation aCorruptedPlantLocation[] =
+static const CorruptedPlantedLocation aCorruptedWhipperRootLocation[] =
 {
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6442.655f, -1260.213f, 386.236f, 5.21f},
-    {6424.697f, -1276.827f, 382.491f, 2.56f}
+    {3866.64f, -666.657, 329.731f, -2.373f}, // 164888
+    {6433.25f, -1266.62, 383.206f, 2.234f}, // 173284
+    {6666.67f, -1200f, 471.328f, 2.164f}, // 174605
+    {6400f, -699.992f, 477.424f, 2.600f}, // 174606
+    {5333.33f, -833.325f, 342.732f, 0.628319f}, // 174607
+    {4824.34f, -316.803f, 358.791f, -2.21657f} // 174686
 };
 
 struct LocateQuestResult {
@@ -988,7 +985,7 @@ void SpawnNewCorruptedPlant(Player* pPlayer, LocateQuestResult findQuestResult)
             if (int plantToSpawn = findPlantToSpawn(QUEST_CORRUPTED_WHIPPER_ROOT))
             {      
                 DEBUG_LOG("***** SPAWNING WHIPPER ROOT # %u ", plantToSpawn);
-                pPlayer->SummonGameObject(aCorruptedWhipperRootId[plantToSpawn], aCorruptedPlantLocation[0].fX, aCorruptedPlantLocation[0].fY, aCorruptedPlantLocation[0].fZ, aCorruptedPlantLocation[0].fO, 30);
+                pPlayer->SummonGameObject(aCorruptedWhipperRootId[plantToSpawn], aCorruptedWhipperRootLocation[plantToSpawn].fX, aCorruptedWhipperRootLocation[plantToSpawn].fY, aCorruptedWhipperRootLocation[plantToSpawn].fZ, aCorruptedWhipperRootLocation[plantToSpawn].fO, 30);
             }
             else
                 DEBUG_LOG("***** ALL PLANTS ARE %s ******* ", "Spawned");
@@ -1010,7 +1007,7 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
     
     LocateQuestResult findQuestResult;
 
-    locateQuestId(QUEST_CORRUPTED_SONGFLOWER, uQuestId);
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_SONGFLOWER, uQuestId);
     if (findQuestResult.iQuest == QUEST_CORRUPTED_SONGFLOWER)
     {
         // despawn corrupted plant
@@ -1020,7 +1017,7 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
         return true;
     }
     
-    locateQuestId(QUEST_CORRUPTED_NIGHT_DRAGON, uQuestId);
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_NIGHT_DRAGON, uQuestId);
     if (findQuestResult.iQuest == QUEST_CORRUPTED_NIGHT_DRAGON)
     {
         // despawn corrupted plant
@@ -1030,7 +1027,7 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
         return true;
     }
     
-    locateQuestId(QUEST_CORRUPTED_WINDBLOSSOM, uQuestId);
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_WINDBLOSSOM, uQuestId);
     if (findQuestResult.iQuest == QUEST_CORRUPTED_WINDBLOSSOM)
     {
         // despawn corrupted plant
@@ -1040,7 +1037,7 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
         return true;
     }
     
-    locateQuestId(QUEST_CORRUPTED_WHIPPER_ROOT, uQuestId);
+    findQuestResult = locateQuestId(QUEST_CORRUPTED_WHIPPER_ROOT, uQuestId);
     if (findQuestResult.iQuest == QUEST_CORRUPTED_WHIPPER_ROOT)
     {
         DEBUG_LOG("*****=========================== ******* ");
