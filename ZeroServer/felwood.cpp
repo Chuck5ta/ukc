@@ -869,7 +869,7 @@ struct LocateQuestResult {
     int iPlantIndex;
 };
 
-uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
+LocateQuestResult locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
 {
     int index = 0;
     LocateQuestResult findQuestResult;
@@ -926,7 +926,8 @@ uint32 locateQuestId(uint32 uQuestToSearchFor, uint32 uQuestId)
         }
     }
 
-    return FAILED_TO_LOCATE_QUEST; // quest ID not located
+    findQuestResult.iQuest = FAILED_TO_LOCATE_QUEST;
+    return findQuestResult; // quest ID not located
 }
 
 void DespawnCorruptedPlant(GameObject* pGo)
