@@ -849,17 +849,26 @@ static const uint32 aCorruptedWhipperRootQuestId[] =
 { 4117, 4443, 4444, 4445, 4446, 4461 };                              // Corrupted Whipper Root
 
 bool aCorruptedWhipperRootSpawned[] =
-{ true, true, true, true, true, true, true, true, true };            // Corrupted Songflower
+{ true, true, true, true, true, true, true};                    // Corrupted Whipper Root
+static const uint32 aCorruptedWhipperRootId[] =
+{ 164888, 173284, 174605, 174606, 174607, 174686 };             // Corrupted Whipper Root
 
 // corrupted plant coordinates - required for the respawn issue work-a-round
 
-struct CorruptPlantedLocation
+struct CorruptedPlantedLocation
 {
     float fX, fY, fZ, fO;
 };
 
-static const CorruptPlantedLocation aCorruptedPlantLocation[] =
+static const CorruptedPlantedLocation aCorruptedPlantLocation[] =
 {
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
+    {6442.655f, -1260.213f, 386.236f, 5.21f},
     {6442.655f, -1260.213f, 386.236f, 5.21f},
     {6424.697f, -1276.827f, 382.491f, 2.56f}
 };
@@ -936,9 +945,59 @@ void DespawnCorruptedPlant(GameObject* pGo)
     pGo->SetRespawnTime(1);
 }
 
-void SpawnNewCorruptedPlant(Player* pPlayer)
+uint32 findPlantToSpawn(int plantType)
 {
-    pPlayer->SummonGameObject(GO_CORRUPTED_WHIPPER_ROOT, aCorruptedPlantLocation[0].fX, aCorruptedPlantLocation[0].fY, aCorruptedPlantLocation[0].fZ, aCorruptedPlantLocation[0].fO, 30);
+    switch (plantType)
+    {
+        case  QUEST_CORRUPTED_WHIPPER_ROOT:
+        {   
+            int choice = rand() % 5;
+            if (!aCorruptedWhipperRootSpawned[choice])
+            {
+                DEBUG_LOG("***** RANDOMLY PICKED %s %u ******* ", "Whipper Root", choice);
+                return choice; // spawn this one
+            }
+            else // failed to locate one randomly
+            {
+                DEBUG_LOG("***** FAILED TO RANDOMLY PICK %s ******* ", "Whipper Root");
+                // find the first one
+                for (int i = 0; i < 6; i++)
+                {
+                    if (!aCorruptedWhipperRootSpawned[i])
+                    {
+                        DEBUG_LOG("***** PICKED %s %u ******* ", "Whipper Root", choice);
+                        return choice; // spawn this one
+                    }
+                }
+                // reached here, then all plants are spawned
+            }
+        }
+    }
+
+    DEBUG_LOG("***** ALL PLANTS ARE %s ******* ", "Spawned");
+    return 0; // all plants are currently spawned
+}
+
+void SpawnNewCorruptedPlant(Player* pPlayer, LocateQuestResult findQuestResult)
+{
+    switch (findQuestResult.iQuest)
+    {
+        case  QUEST_CORRUPTED_WHIPPER_ROOT:
+        {            
+            // locate another plant to spawn (not the same one)
+            if (int plantToSpawn = findPlantToSpawn(QUEST_CORRUPTED_WHIPPER_ROOT))
+            {      
+                DEBUG_LOG("***** SPAWNING WHIPPER ROOT # %u ", plantToSpawn);
+                pPlayer->SummonGameObject(aCorruptedWhipperRootId[plantToSpawn], aCorruptedPlantLocation[0].fX, aCorruptedPlantLocation[0].fY, aCorruptedPlantLocation[0].fZ, aCorruptedPlantLocation[0].fO, 30);
+            }
+            else
+                DEBUG_LOG("***** ALL PLANTS ARE %s ******* ", "Spawned");
+            
+            // set plant to despawned state
+            aCorruptedWhipperRootSpawned[findQuestResult.iPlantIndex] = false;
+            break;            
+        }
+    }
 }
 
 bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Quest* pQuest)
@@ -952,19 +1011,17 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
     LocateQuestResult findQuestResult;
 
     locateQuestId(QUEST_CORRUPTED_SONGFLOWER, uQuestId);
-    if (LocateQuestResult.iQuest == QUEST_CORRUPTED_SONGFLOWER)
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_SONGFLOWER)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
-        // spawn new plant - work-a-round for the spawning issue
-        SpawnNewCorruptedPlant(pPlayer);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_SONGFLOWER, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
         return true;
     }
     
     locateQuestId(QUEST_CORRUPTED_NIGHT_DRAGON, uQuestId);
-    if (LocateQuestResult.iQuest == QUEST_CORRUPTED_NIGHT_DRAGON)
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_NIGHT_DRAGON)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
@@ -974,7 +1031,7 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
     }
     
     locateQuestId(QUEST_CORRUPTED_WINDBLOSSOM, uQuestId);
-    if (LocateQuestResult.iQuest == QUEST_CORRUPTED_WINDBLOSSOM)
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_WINDBLOSSOM)
     {
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
@@ -984,10 +1041,19 @@ bool QuestRewarded_go_corrupted_plant(Player* pPlayer, GameObject* pGo, const Qu
     }
     
     locateQuestId(QUEST_CORRUPTED_WHIPPER_ROOT, uQuestId);
-    if (LocateQuestResult.iQuest == QUEST_CORRUPTED_WHIPPER_ROOT)
+    if (findQuestResult.iQuest == QUEST_CORRUPTED_WHIPPER_ROOT)
     {
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("***** INTERACTING WITH %s ******* ", "Whipper Root");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
+        DEBUG_LOG("*****=========================== ******* ");
         // despawn corrupted plant
         DespawnCorruptedPlant(pGo);
+        // spawn new plant - work-a-round for the spawning issue
+        SpawnNewCorruptedPlant(pPlayer, findQuestResult);
         // spawn cleansed plant
         pPlayer->SummonGameObject(GO_CLEANSED_WHIPPER_ROOT, fX, fY, fZ, 0.0f, PLANT_SPAWN_DURATION);
         return true;
