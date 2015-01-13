@@ -39,6 +39,7 @@
  */
 
 #include "precompiled.h"
+#include "razorfen_downs.h"
 #include "escort_ai.h"
 
 /*###
@@ -308,33 +309,8 @@ bool QuestAccept_npc_belnistrasz(Player* pPlayer, Creature* pCreature, const Que
 # go_tutenkash_gong
 ####*/
 
-enum
-{
-    GO_GONG = 148917,
-    NPC_TOMB_FIEND = 7349,
-    TOTAL_FIENDS = 8,
-    NPC_TOMB_REAVER = 7351,
-    NPC_TUTENKASH = 7355
-};
-
-struct TUTENKASH_CreatureLocation
-{
-    float fX, fY, fZ, fO;
-};
-
-static const TUTENKASH_CreatureLocation aCreatureLocation[] =
-{
-    {2540.479f, 906.539f, 46.663f, 5.47f},               // mob 1 
-    {2541.511f, 912.857f, 46.216f, 5.39f},               // mob 2
-    {2536.703f, 917.214f, 46.094f, 5.57f},               // mob 3
-    {2530.443f, 913.598f, 46.083f, 5.69f},               // mob 4
-    {2529.833f, 920.977f, 45.836f, 5.47f},               // mob 5
-    {2524.738f, 915.195f, 46.248f, 5.97f},               // mob 6
-    {2517.829f, 917.746f, 46.073f, 5.83f},               // mob 7
-    {2512.750f, 924.458f, 46.504f, 5.92f}                // mob 8
-};
-
-
+// records which round of creatures we are in (TombFiend, Tomb Raider, Boss)
+int iWaveNumber = 0;
 
 void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
 {
@@ -344,11 +320,33 @@ void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
     }
 }
 
+// tick off mobs as they die, then when all dead, activate the gong
+
+    // activate gong
+    // pGo->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+
 bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
 {
-    // spawn creatures
+    iWaveNumber++; // next wave of mobs, please :)
+    switch (iWaveNumber)
+    {
+        case 1:
+            // spawn Tomb Fiends
+            SummonCreatures(pPlayer, NPC_TOMB_FIEND, TOTAL_FIENDS);
+            break;
+        case 2:
+            // spawn Tomb Reavers
+            // SummonCreatures(pPlayer, NPC_TOMB_REAVER, TOTAL_REAVERS);
+            break;
+        default:
+            // spawn boss
+            // pPlayer->SummonCreature(NPC_TUTENKASH, X, Y, Z, O, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
+            break;
+    }
+
     // deactivate gong
-    SummonCreatures(pPlayer, NPC_TOMB_FIEND, TOTAL_FIENDS);
+    pGo->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+
     return true;
 }
 
