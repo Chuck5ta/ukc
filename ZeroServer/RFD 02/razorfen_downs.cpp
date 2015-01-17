@@ -339,22 +339,18 @@ static const TUTENKASH_CreatureLocation aCreatureLocation[] =
 };
 
 // records which round of creatures we are in (TombFiend, Tomb Raider, Boss)
-static int iWaveNumber = 1;
+static int iWaveNumber;
 bool bWaveInMotion = false;
 
 int iTombFiendsAlive = 2;
-int iTombReaversAlive = 4;
+
+GameObject* pGoGong = NULL;
 
 void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
 {
     for (int i = 0; i < iTotalToSpawn; i++)
     {
-        Creature* pTombCreature = pPlayer->SummonCreature(NPC_ID, aCreatureLocation[i].fX, aCreatureLocation[i].fY, aCreatureLocation[i].fZ, aCreatureLocation[i].fO, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
-        pTombCreature->GetMotionMaster()->MovePoint(0, 2547.565918, 904.983032, 46.776985);
-        pTombCreature->GetMotionMaster()->MovePoint(0, 2547.496094, 895.083374, 47.736107);
-        pTombCreature->GetMotionMaster()->MovePoint(0, 2543.796143, 884.629150, 47.764336);
-        pTombCreature->GetMotionMaster()->MovePoint(0, 2532.118896, 866.656006, 47.678146);
-        pTombCreature->GetMotionMaster()->MovePoint(0, 2522.604736, 858.547791, 47.678673);
+        pPlayer->SummonCreature(NPC_ID, aCreatureLocation[i].fX, aCreatureLocation[i].fY, aCreatureLocation[i].fZ, aCreatureLocation[i].fO, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
     }
 }
 
@@ -365,14 +361,12 @@ void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
 
 bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
 {
-    DEBUG_LOG(" ********************************************** ");
-    DEBUG_LOG(" ********** DINGGGGGGGG DONGGGGGGG   ********** ");
-    DEBUG_LOG(" ********************************************** ");
-    // gong will only spawn next wave if current wave has been wiped out
+    pGoGong = pGo;
+    iWaveNumber++; // next wave of mobs, please :)
     if (!bWaveInMotion)
+        pGo->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+    switch (iWaveNumber)
     {
-        switch (iWaveNumber)
-        {
         case 1:
             // spawn Tomb Fiends
             DEBUG_LOG(" ********************************************** ");
@@ -385,27 +379,17 @@ bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
         case 2:
             // spawn Tomb Reavers
             DEBUG_LOG(" ==============  WAVE %s ************ ", "TWO !!!");
-            bWaveInMotion = true;
-            SummonCreatures(pPlayer, NPC_TOMB_REAVER, TOTAL_REAVERS);
+            // SummonCreatures(pPlayer, NPC_TOMB_REAVER, TOTAL_REAVERS);
             break;
         default:
             // spawn boss
             DEBUG_LOG(" ==============  WAVE %s ************ ", "BOSS !!!");
-            bWaveInMotion = true;
-            Creature* pBoss = pPlayer->SummonCreature(NPC_TUTENKASH, 2493.968750f, 790.974976f, 39.849941f, 5.47f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
-            pBoss->GetMotionMaster()->MovePoint(0, 2488.502686, 801.684021, 42.731823);
-            pBoss->GetMotionMaster()->MovePoint(0, 2485.428955, 815.734619, 43.195621);
-            pBoss->GetMotionMaster()->MovePoint(0, 2486.951904, 826.718079, 43.586765);
-            pBoss->GetMotionMaster()->MovePoint(0, 2496.677002, 838.880005, 45.809792);
-            pBoss->GetMotionMaster()->MovePoint(0, 2501.559814, 847.080750, 47.408485);
-            pBoss->GetMotionMaster()->MovePoint(0, 2506.661377, 855.430359, 47.678036);
-            pBoss->GetMotionMaster()->MovePoint(0, 2514.890869, 861.339966, 47.678036);
-            pBoss->GetMotionMaster()->MovePoint(0, 2526.009033, 865.386108, 47.678036);
-            pBoss->GetMotionMaster()->MovePoint(0, 2535.066406, 865.476990, 48.337727);
+            // pPlayer->SummonCreature(NPC_TUTENKASH, X, Y, Z, O, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
             break;
-        }
-
     }
+
+    // deactivate gong
+    pGo->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
 
     return true;
 }
@@ -442,7 +426,15 @@ struct npc_tomb_fiend : public ScriptedAI
             {
                 bWaveInMotion = false;
                 iWaveNumber = 2;
-                DEBUG_LOG(" *********** NEXT WAVE !!!! ************* ");
+                // activate gong
+    //            GameObject* pGo = GetClosestGameObjectWithEntry(m_creature, GO_GONG, 10.0f);
+    //            pGo->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+       //         pGoGong->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
+                DEBUG_LOG(" ********************************************** ");
+                DEBUG_LOG(" ********************************************** ");
+                DEBUG_LOG(" ==== Gong has been activated !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ");
+                DEBUG_LOG(" ********************************************** ");
+                DEBUG_LOG(" ********************************************** ");
             }
             DEBUG_LOG(" ********************************************** ");
             DEBUG_LOG(" ********************************************** ");
@@ -451,19 +443,13 @@ struct npc_tomb_fiend : public ScriptedAI
             DEBUG_LOG(" ********************************************** ");
             break;
         case NPC_TOMB_REAVER:
-            // process fiend combat
-            iTombReaversAlive--;
-            if (!iTombReaversAlive)
-            {
-                bWaveInMotion = false;
-                iWaveNumber = 3; // boss time!!!
-                DEBUG_LOG(" *********** NEXT WAVE !!!! ************* ");
-            }
             // process reaver combat
             DEBUG_LOG(" ============== TOMB REAVER ************ ", "DEAD !!!");
             break;
         }
-        
+
+        DEBUG_LOG(" ============== SOMETHING ************ ", "DEAD !!!");
+
     }
 
     void UpdateAI(const uint32 uiDiff) override
