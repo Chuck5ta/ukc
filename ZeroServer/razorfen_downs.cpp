@@ -311,11 +311,9 @@ bool QuestAccept_npc_belnistrasz(Player* pPlayer, Creature* pCreature, const Que
 
 enum
 {
-    MAX_ENCOUNTER = 100,
-
     GO_GONG = 148917,
     NPC_TOMB_FIEND = 7349,
-    TOTAL_FIENDS = 2, // 8,
+    TOTAL_FIENDS = 8,
     NPC_TOMB_REAVER = 7351,
     TOTAL_REAVERS = 4,
     NPC_TUTENKASH = 7355
@@ -328,23 +326,30 @@ struct TUTENKASH_CreatureLocation
 
 static const TUTENKASH_CreatureLocation aCreatureLocation[] =
 {
-    { 2540.479f, 906.539f, 46.663f, 5.47f },               // mob 1 
-    { 2541.511f, 912.857f, 46.216f, 5.39f },               // mob 2
-    { 2536.703f, 917.214f, 46.094f, 5.57f },               // mob 3
-    { 2530.443f, 913.598f, 46.083f, 5.69f },               // mob 4
-    { 2529.833f, 920.977f, 45.836f, 5.47f },               // mob 5
-    { 2524.738f, 915.195f, 46.248f, 5.97f },               // mob 6
-    { 2517.829f, 917.746f, 46.073f, 5.83f },               // mob 7
-    { 2512.750f, 924.458f, 46.504f, 5.92f }                // mob 8
+    { 2540.479f, 906.539f, 46.663f, 5.47f },               // Tomb Fiend/Reaver spawn point
+    { 2541.511f, 912.857f, 46.216f, 5.39f },               // Tomb Fiend/Reaver spawn point
+    { 2536.703f, 917.214f, 46.094f, 5.57f },               // Tomb Fiend/Reaver spawn point
+    { 2530.443f, 913.598f, 46.083f, 5.69f },               // Tomb Fiend/Reaver spawn point
+    { 2529.833f, 920.977f, 45.836f, 5.47f },               // Tomb Fiend spawn point
+    { 2524.738f, 915.195f, 46.248f, 5.97f },               // Tomb Fiend spawn point
+    { 2517.829f, 917.746f, 46.073f, 5.83f },               // Tomb Fiend spawn point
+    { 2512.750f, 924.458f, 46.504f, 5.92f }                // Tomb Fiend spawn point
+};
+
+static const TUTENKASH_CreatureLocation aTutenkashLocation[] =
+{
+    { 2493.968f, 790.974f, 39.849f, 5.92f }                // Tuten'kash spawn point
 };
 
 // records which round of creatures we are in (TombFiend, Tomb Raider, Boss)
 static int iWaveNumber = 1;
+// use to kick off each wave of creatures and to prevent the event happening more than once whilst in the same instance of the dungeon
 bool bWaveInMotion = false;
-
-int iTombFiendsAlive = 2;
+// keeps track of the number of craetures still alive in the wave
+int iTombFiendsAlive = 8;
 int iTombReaversAlive = 4;
 
+// used for summoning multiple numbers of creatures
 void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
 {
     for (int i = 0; i < iTotalToSpawn; i++)
@@ -355,13 +360,9 @@ void SummonCreatures(Player* pPlayer, int NPC_ID, int iTotalToSpawn)
         pTombCreature->GetMotionMaster()->MovePoint(0, 2543.796143, 884.629150, 47.764336);
         pTombCreature->GetMotionMaster()->MovePoint(0, 2532.118896, 866.656006, 47.678146);
         pTombCreature->GetMotionMaster()->MovePoint(0, 2522.604736, 858.547791, 47.678673);
+        pTombCreature->GetMotionMaster()->MoveIdle();
     }
 }
-
-// tick off mobs as they die, then when all dead, activate the gong
-
-    // activate gong
-    // pGo->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NO_INTERACT);
 
 bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
 {
@@ -391,8 +392,8 @@ bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
         default:
             // spawn boss
             DEBUG_LOG(" ==============  WAVE %s ************ ", "BOSS !!!");
-            bWaveInMotion = true;
-            Creature* pBoss = pPlayer->SummonCreature(NPC_TUTENKASH, 2493.968750f, 790.974976f, 39.849941f, 5.47f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
+            bWaveInMotion = true; // last wave,so willnever be set back to false, therefore this event cannot happen again
+            Creature* pBoss = pPlayer->SummonCreature(NPC_TUTENKASH, aTutenkashLocation[0].fX, aTutenkashLocation[0].fY, aTutenkashLocation[0].fZ, aTutenkashLocation[0].fO, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 7200000);
             pBoss->GetMotionMaster()->MovePoint(0, 2488.502686, 801.684021, 42.731823);
             pBoss->GetMotionMaster()->MovePoint(0, 2485.428955, 815.734619, 43.195621);
             pBoss->GetMotionMaster()->MovePoint(0, 2486.951904, 826.718079, 43.586765);
@@ -402,6 +403,7 @@ bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
             pBoss->GetMotionMaster()->MovePoint(0, 2514.890869, 861.339966, 47.678036);
             pBoss->GetMotionMaster()->MovePoint(0, 2526.009033, 865.386108, 47.678036);
             pBoss->GetMotionMaster()->MovePoint(0, 2535.066406, 865.476990, 48.337727);
+            pBoss->GetMotionMaster()->MoveIdle();
             break;
         }
 
@@ -411,11 +413,12 @@ bool GOUse_go_tutenkash_gong(Player* pPlayer, GameObject* pGo)
 }
 
 
-
-struct npc_tomb_fiend : public ScriptedAI
+// handles AI related script for the Tomb Fiends and Tomb Reavers
+// - at present that is solely the recoding of the deaths of the creatures
+struct npc_tomb_creature : public ScriptedAI
 {
 
-    npc_tomb_fiend(Creature* pCreature) : ScriptedAI(pCreature)
+    npc_tomb_creature(Creature* pCreature) : ScriptedAI(pCreature)
     {
         DEBUG_LOG(" ********************************************** ");
         DEBUG_LOG(" ********************************************** ");
@@ -428,6 +431,7 @@ struct npc_tomb_fiend : public ScriptedAI
 
     void Reset() override
     {
+        // leaving this her for future use, just-in-case
     }
 
     void JustDied(Unit* pKiller) override
@@ -436,12 +440,11 @@ struct npc_tomb_fiend : public ScriptedAI
         switch (m_creature->GetEntry())
         {
         case NPC_TOMB_FIEND:
-            // process fiend combat
             iTombFiendsAlive--;
             if (!iTombFiendsAlive)
             {
                 bWaveInMotion = false;
-                iWaveNumber = 2;
+                iWaveNumber = 2; // Reaver time
                 DEBUG_LOG(" *********** NEXT WAVE !!!! ************* ");
             }
             DEBUG_LOG(" ********************************************** ");
@@ -451,7 +454,6 @@ struct npc_tomb_fiend : public ScriptedAI
             DEBUG_LOG(" ********************************************** ");
             break;
         case NPC_TOMB_REAVER:
-            // process fiend combat
             iTombReaversAlive--;
             if (!iTombReaversAlive)
             {
@@ -459,7 +461,6 @@ struct npc_tomb_fiend : public ScriptedAI
                 iWaveNumber = 3; // boss time!!!
                 DEBUG_LOG(" *********** NEXT WAVE !!!! ************* ");
             }
-            // process reaver combat
             DEBUG_LOG(" ============== TOMB REAVER ************ ", "DEAD !!!");
             break;
         }
@@ -468,16 +469,16 @@ struct npc_tomb_fiend : public ScriptedAI
 
     void UpdateAI(const uint32 uiDiff) override
     {
-
+        // leaving this here for future use, just-in-case
     }
 
 };
 
 
-// This will count down the deaths of the mobs
-CreatureAI* GetAI_npc_tomb_fiend(Creature* pCreature)
+// This will count down the deaths of the mobs in each wave (Tomb Fiends and Reavers)
+CreatureAI* GetAI_npc_tomb_creature(Creature* pCreature)
 {
-    return new npc_tomb_fiend(pCreature);
+    return new npc_tomb_creature(pCreature);
 }
 
 void AddSC_razorfen_downs()
@@ -490,8 +491,8 @@ void AddSC_razorfen_downs()
     pNewScript->RegisterSelf();
     
     pNewScript = new Script;
-    pNewScript->Name = "npc_tomb_fiend";
-    pNewScript->GetAI = &GetAI_npc_tomb_fiend;
+    pNewScript->Name = "npc_tomb_creature"; // repressents both Tomb Fiends and Tomb Reavers
+    pNewScript->GetAI = &GetAI_npc_tomb_creature;
     pNewScript->RegisterSelf();
     
     pNewScript = new Script;
