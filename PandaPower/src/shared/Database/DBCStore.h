@@ -47,7 +47,7 @@ class DBCStorage
             if (!dbc.Load(fn, fmt))
                 return false;
 
-            fieldCount = dbc.GetCols();  <--- wrong number of fields!!!
+            fieldCount = dbc.GetCols();  //<--- wrong number of fields!!!
             
             // load raw non-string data
             m_dataTable = (T*)dbc.AutoProduceData(fmt, nCount, (char**&)indexTable);
